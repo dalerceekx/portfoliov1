@@ -1,0 +1,84 @@
+# Three containers: Postgres, the API, and Nginx serving the SPA in front of it.
+#
+# By default the bundled Postgres runs alongside the app — one instance, one
+# `docker compose up`, nothing else to provision. To use Amazon RDS instead,
+# clear COMPOSE_PROFILES in .env and set DATABASE_URL; the db service below is
+# then never created and the API talks straight to RDS.
+
+x-logging: &logging
+  # Without a cap, json-file logs grow until they fill the EBS volume, and this
+  # API logs every request with its headers.
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+services:
+  db:
+    image: postgres:16-alpine
+    profiles: ['bundled-db']
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-portfolio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:-portfolio}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    # Not published to the host: only the api service can reach it.
+    expose:
+      - '5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-portfolio}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./server
+    restart: unless-stopped
+    logging: *logging
+    # `required: false` so the stack still starts when the bundled db is switched
+    # off in favour of RDS.
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-portfolio}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env, or set DATABASE_URL to point at RDS}@db:5432/${POSTGRES_DB:-portfolio}?schema=public}
+      CORS_ORIGIN: ${PUBLIC_SITE_URL:-http://localhost:8081}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-http://localhost:8081}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env}
+      JWT_ACCESS_TTL_SECONDS: 900
+      REFRESH_TOKEN_TTL_DAYS: 7
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      # 1 for the bundled Nginx alone; 2 when an ALB or CloudFront is in front of
+      # it. Undercounting collapses every visitor onto the proxy's IP and turns
+      # the per-IP rate limits into one shared bucket.
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+      UPLOAD_DIR: /app/uploads
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-3145728}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    volumes:
+      - uploads:/app/uploads
+    expose:
+      - '4000'
+    # Matches the 10s drain in src/index.ts.
+    stop_grace_period: 15s
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      - api
+    ports:
+      - '${WEB_PORT:-8081}:80'
+
+volumes:
+  db_data:
+  uploads:

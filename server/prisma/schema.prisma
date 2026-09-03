@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+enum ProjectStatus {
+  LIVE
+  IN_DEVELOPMENT
+  ARCHIVED
+}
+
+model Admin {
+  id                  String         @id @default(cuid())
+  email               String         @unique
+  name                String?
+  passwordHash        String
+  role                Role           @default(ADMIN)
+  failedLoginAttempts Int            @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  refreshTokens RefreshToken[]
+  loginLogs     LoginLog[]
+
+  @@map("admins")
+}
+
+/// Server-side session handle. Only the SHA-256 hash of the token is stored,
+/// so a database leak does not hand out usable sessions.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  adminId   String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  admin Admin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  description String
+  /// Optional: internal or unreleased work has no public link to point at.
+  url         String?
+  image       String?
+  icon        String?
+  category    String        @default("Other")
+  tags        String[]      @default([])
+  status      ProjectStatus @default(LIVE)
+  published   Boolean       @default(true)
+  featured    Boolean       @default(false)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([published, sortOrder])
+  @@index([category])
+  @@map("projects")
+}
+
+/// Singleton row (id = 1). Every piece of personal content on the public site
+/// is read from here, never hardcoded in the UI.
+model SiteSettings {
+  id             Int      @id @default(1)
+  name           String
+  headline       String
+  subheadline    String   @default("")
+  bio            String   @default("")
+  aboutTitle     String   @default("About")
+  avatar         String?
+  email          String
+  location       String   @default("")
+  availability   String   @default("")
+  skills         String[] @default([])
+  footerText     String   @default("")
+  contactHeading String   @default("Let's work together")
+  contactBody    String   @default("")
+  seoTitle       String   @default("")
+  seoDescription String   @default("")
+  ogImage        String?
+  canonicalUrl   String   @default("")
+  accentPrimary  String   @default("#2DD4BF")
+  accentSecondary String  @default("#FB7185")
+  updatedAt      DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model SocialLink {
+  id        String   @id @default(cuid())
+  platform  String
+  label     String
+  url       String
+  sortOrder Int      @default(0)
+  visible   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([visible, sortOrder])
+  @@map("social_links")
+}
+
+model ContactMessage {
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  subject   String    @default("")
+  message   String
+  readAt    DateTime?
+  ip        String?
+  createdAt DateTime  @default(now())
+
+  @@index([createdAt])
+  @@map("contact_messages")
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  adminId   String?
+  email     String
+  ip        String?
+  userAgent String?
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  admin Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("login_logs")
+}

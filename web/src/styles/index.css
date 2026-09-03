@@ -1,0 +1,136 @@
+@import '@fontsource-variable/inter';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Overwritten at runtime from site settings, so the accent is admin-owned.
+       Default is Apple's action blue (#0071E3). */
+    --accent-primary: 0 113 227;
+    --accent-secondary: 255 149 0;
+  }
+
+  * {
+    @apply border-hairline;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-graphite antialiased;
+    /* No gradient, no texture, no atmosphere: the ground is white and the
+       sections that follow do the separating. */
+    text-rendering: optimizeLegibility;
+    font-synthesis: none;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-semibold;
+  }
+
+  /* Never remove the outline — retint it. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent/70 ring-offset-2 ring-offset-canvas;
+  }
+
+  ::selection {
+    @apply bg-accent/20 text-graphite;
+  }
+}
+
+@layer components {
+  .shell {
+    @apply mx-auto w-full max-w-shell px-6 sm:px-10 lg:px-12;
+  }
+
+  /* The content column Apple centres its headlines and copy in. */
+  .copy {
+    @apply mx-auto w-full max-w-copy;
+  }
+
+  /**
+   * The one blurred surface on the site, and the only place Apple uses it: the
+   * navigation bar sitting over scrolling content.
+   */
+  .nav-blur {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+
+  /* A hairline rule — the site's only divider. */
+  .rule {
+    @apply h-px w-full bg-hairline;
+  }
+
+  /**
+   * The admin panel's surface. Apple's own tool UIs are white cards on #F5F5F7
+   * with a hairline and the faintest lift — no translucency, no blur.
+   */
+  .card {
+    @apply rounded-card border border-hairline bg-canvas shadow-lift;
+  }
+
+  /**
+   * Apple's inline link: blue, no underline until hover, and a chevron that
+   * belongs to the text rather than being an icon bolted onto it.
+   */
+  .link-chevron {
+    @apply inline-flex items-center text-lede text-accent transition-colors duration-200 hover:underline;
+  }
+  .link-chevron::after {
+    content: '\203A';
+    @apply ml-1 text-[1.15em] leading-none;
+  }
+}
+
+@layer utilities {
+  /* Horizontal scrollers keep the gesture but drop the bar, as Apple's own
+     category rows do. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Staggers the single page-load sequence without a JS timeline. */
+  .delay-step-1 {
+    animation-delay: 60ms;
+  }
+  .delay-step-2 {
+    animation-delay: 140ms;
+  }
+  .delay-step-3 {
+    animation-delay: 220ms;
+  }
+  .delay-step-4 {
+    animation-delay: 300ms;
+  }
+  .delay-step-5 {
+    animation-delay: 380ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
