@@ -32,6 +32,8 @@ describe('admin authorisation', () => {
     ['get', '/api/admin/messages'],
     ['get', '/api/admin/security/login-logs'],
     ['get', '/api/admin/stats'],
+    // Mounted from modules/uploads: a missing module breaks the import, not just this route.
+    ['post', '/api/admin/uploads'],
   ];
 
   it.each(guarded)('rejects unauthenticated %s %s', async (method, path) => {

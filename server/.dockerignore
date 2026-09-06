@@ -1,6 +1,7 @@
 node_modules
 dist
-uploads
+# Runtime upload storage only — never the uploads source module.
+/uploads
 .env
 .env.*
 *.log

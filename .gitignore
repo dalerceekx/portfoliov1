@@ -1,6 +1,9 @@
 node_modules
 dist
 .env
-uploads
+# Runtime upload storage only. Must stay anchored: a bare `uploads` pattern
+# matches at any depth and silently swallowed server/src/modules/uploads/ too.
+/uploads
+/server/uploads
 *.log
 .DS_Store
